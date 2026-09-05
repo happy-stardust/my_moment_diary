@@ -147,8 +147,12 @@
         </div>
 
         <div id="tab-tournament" class="tab-content card" style="display:none;">
-            <div class="badge" id="tournament-badge">토너먼트</div>
-            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">순간을 선택하세요!</p>
+            <!-- 👇 토너먼트 전용 달력이 추가된 부분 👇 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="badge" id="tournament-badge" style="margin: 0;">토너먼트</div>
+                <input type="date" id="tournamentDate" style="padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); outline: none;" onchange="setupTournament(currentTier)">
+            </div>
+            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">어느 시점의 순간을 돌아볼까요?</p>
             
             <div id="tournament-start-screen">
                 <div id="tournament-info" style="text-align:center; padding:20px; font-weight:bold;"></div>
@@ -181,7 +185,9 @@
         set: (key, val) => localStorage.setItem(key, JSON.stringify(val))
     };
 
+    // 👇 날짜 초기화 부분 (토너먼트 달력 추가됨) 👇
     document.getElementById('diaryDate').valueAsDate = new Date();
+    document.getElementById('tournamentDate').valueAsDate = new Date(); 
 
     let currentTier = '';
     let currentSourceKey = '';
@@ -269,43 +275,41 @@
         alert(`${dateInput}의 기록이 저장되었습니다!`);
     }
 
+    // 👇 토너먼트 달력을 기준으로 데이터를 가져오도록 수정된 부분 👇
     function setupTournament(tier) {
         currentTier = tier;
         document.getElementById('tournament-start-screen').style.display = 'block';
         document.getElementById('tournament-arena').style.display = 'none';
 
-        // 오늘 날짜(또는 선택한 날짜)를 기준으로 기간 필터링 세팅
-        const baseDateStr = document.getElementById('diaryDate').value || new Date().toISOString().split('T')[0];
+        // 이제 '토너먼트 전용 달력(tournamentDate)'의 날짜를 읽어옵니다.
+        const baseDateStr = document.getElementById('tournamentDate').value || new Date().toISOString().split('T')[0];
         const baseInfo = getDateInfo(baseDateStr);
 
         let candidates = [];
         let titleLabel = '';
 
         if (tier === 'weekly') {
-            titleLabel = `${baseInfo.month}월 ${baseInfo.week}주차 주간 픽 뽑기`;
+            titleLabel = `${baseInfo.month}월 ${baseInfo.week}주차 픽`;
             currentSourceKey = 'daily_moments'; currentTargetKey = 'weekly_best';
             
-            // 이번 주에 쓴 기록만 필터링
             const allDaily = DB.get(currentSourceKey);
             candidates = allDaily.filter(item => {
                 const info = getDateInfo(item.date);
                 return info.year === baseInfo.year && info.month === baseInfo.month && info.week === baseInfo.week;
             });
         } else if (tier === 'monthly') {
-            titleLabel = `${baseInfo.year}년 ${baseInfo.month}월 월간 픽 뽑기`;
+            titleLabel = `${baseInfo.year}년 ${baseInfo.month}월 픽`;
             currentSourceKey = 'weekly_best'; currentTargetKey = 'monthly_best';
             
-            // 이번 달에 뽑힌 주간 픽만 필터링
             const allWeekly = DB.get(currentSourceKey);
             candidates = allWeekly.filter(item => {
                 const info = getDateInfo(item.date);
                 return info.year === baseInfo.year && info.month === baseInfo.month;
             });
         } else {
-            titleLabel = `${baseInfo.year}년 올해의 픽 뽑기`;
+            titleLabel = `${baseInfo.year}년 올해의 픽`;
             currentSourceKey = 'monthly_best'; currentTargetKey = 'yearly_best';
             
-            // 올해 뽑힌 월간 픽만 필터링
             const allMonthly = DB.get(currentSourceKey);
             candidates = allMonthly.filter(item => {
                 const info = getDateInfo(item.date);
@@ -316,13 +320,12 @@
         document.getElementById('tournament-badge').innerText = titleLabel;
 
         if (candidates.length < 2) {
-            document.getElementById('tournament-info').innerHTML = `<span style="color:#e11d48">진행할 기록이 부족합니다. (해당 기간 내 최소 2개 필요)</span>`;
+            document.getElementById('tournament-info').innerHTML = `<span style="color:#e11d48">진행할 기록이 부족합니다. (최소 2개 필요)</span>`;
             document.querySelector('#tournament-start-screen button').style.display = 'none';
         } else {
             document.getElementById('tournament-info').innerHTML = `총 <strong>${candidates.length}</strong>개의 기억이 대기 중입니다.`;
             document.querySelector('#tournament-start-screen button').style.display = 'block';
             
-            // 필터링된 후보들만 큐에 넣기
             tournamentQueue = candidates; 
         }
     }
@@ -446,7 +449,6 @@
             items.forEach(item => {
                 const metaLabel = item.selectedAt ? `<div class="archive-meta">승격: ${item.selectedAt}</div>` : '';
                 
-                // 아이콘(✏️, 🗑️)으로 변경된 수정/삭제 버튼
                 body.innerHTML += `
                     <div class="archive-item" style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1; padding-right: 12px;">
