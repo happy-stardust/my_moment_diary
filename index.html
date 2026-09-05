@@ -113,14 +113,12 @@
 <body>
 
 <div class="container">
-    <!-- 첫 화면 (대문) -->
     <div id="splash-screen">
         <div class="splash-title">✨<br>MOMENT<br>DIARY</div>
         <p class="splash-subtitle">기록하고, 고르고, 순간을 남기세요</p>
         <button class="action-btn" style="width: 80%; padding: 16px;" onclick="startApp()">오늘의 모먼트 쓰기</button>
     </div>
 
-    <!-- 메인 앱 (처음엔 숨겨짐) -->
     <div id="main-app" style="display: none;">
         <header>
             <h1> You are ENOUGH ✨ </h1>
@@ -147,7 +145,6 @@
         </div>
 
         <div id="tab-tournament" class="tab-content card" style="display:none;">
-            <!-- 👇 토너먼트 전용 달력이 추가된 부분 👇 -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div class="badge" id="tournament-badge" style="margin: 0;">토너먼트</div>
                 <input type="date" id="tournamentDate" style="padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); outline: none;" onchange="setupTournament(currentTier)">
@@ -185,7 +182,6 @@
         set: (key, val) => localStorage.setItem(key, JSON.stringify(val))
     };
 
-    // 👇 날짜 초기화 부분 (토너먼트 달력 추가됨) 👇
     document.getElementById('diaryDate').valueAsDate = new Date();
     document.getElementById('tournamentDate').valueAsDate = new Date(); 
 
@@ -195,8 +191,8 @@
     let tournamentQueue = [];
     let nextRoundQueue = [];
     let currentPair = [];
+    let currentBaseInfo = null; 
 
-    // 스플래시 화면에서 메인 앱으로 진입
     function startApp() {
         document.getElementById('splash-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
@@ -220,7 +216,6 @@
         }
     }
 
-    // 날짜를 바탕으로 년, 월, 주차 계산하는 도우미 함수
     function getDateInfo(dateStr) {
         const d = new Date(dateStr);
         const year = d.getFullYear();
@@ -275,45 +270,43 @@
         alert(`${dateInput}의 기록이 저장되었습니다!`);
     }
 
-    // 👇 토너먼트 달력을 기준으로 데이터를 가져오도록 수정된 부분 👇
     function setupTournament(tier) {
         currentTier = tier;
         document.getElementById('tournament-start-screen').style.display = 'block';
         document.getElementById('tournament-arena').style.display = 'none';
 
-        // 이제 '토너먼트 전용 달력(tournamentDate)'의 날짜를 읽어옵니다.
         const baseDateStr = document.getElementById('tournamentDate').value || new Date().toISOString().split('T')[0];
-        const baseInfo = getDateInfo(baseDateStr);
+        currentBaseInfo = getDateInfo(baseDateStr);
 
         let candidates = [];
         let titleLabel = '';
 
         if (tier === 'weekly') {
-            titleLabel = `${baseInfo.month}월 ${baseInfo.week}주차 픽`;
+            titleLabel = `${currentBaseInfo.month}월 ${currentBaseInfo.week}주차 픽`;
             currentSourceKey = 'daily_moments'; currentTargetKey = 'weekly_best';
             
             const allDaily = DB.get(currentSourceKey);
             candidates = allDaily.filter(item => {
                 const info = getDateInfo(item.date);
-                return info.year === baseInfo.year && info.month === baseInfo.month && info.week === baseInfo.week;
+                return info.year === currentBaseInfo.year && info.month === currentBaseInfo.month && info.week === currentBaseInfo.week;
             });
         } else if (tier === 'monthly') {
-            titleLabel = `${baseInfo.year}년 ${baseInfo.month}월 픽`;
+            titleLabel = `${currentBaseInfo.year}년 ${currentBaseInfo.month}월 픽`;
             currentSourceKey = 'weekly_best'; currentTargetKey = 'monthly_best';
             
             const allWeekly = DB.get(currentSourceKey);
             candidates = allWeekly.filter(item => {
                 const info = getDateInfo(item.date);
-                return info.year === baseInfo.year && info.month === baseInfo.month;
+                return info.year === currentBaseInfo.year && info.month === currentBaseInfo.month;
             });
         } else {
-            titleLabel = `${baseInfo.year}년 올해의 픽`;
+            titleLabel = `${currentBaseInfo.year}년 올해의 픽`;
             currentSourceKey = 'monthly_best'; currentTargetKey = 'yearly_best';
             
             const allMonthly = DB.get(currentSourceKey);
             candidates = allMonthly.filter(item => {
                 const info = getDateInfo(item.date);
-                return info.year === baseInfo.year;
+                return info.year === currentBaseInfo.year;
             });
         }
 
@@ -325,7 +318,6 @@
         } else {
             document.getElementById('tournament-info').innerHTML = `총 <strong>${candidates.length}</strong>개의 기억이 대기 중입니다.`;
             document.querySelector('#tournament-start-screen button').style.display = 'block';
-            
             tournamentQueue = candidates; 
         }
     }
@@ -338,10 +330,32 @@
         return array;
     }
 
+    // 👇 핵심 업데이트: 시작 버튼을 눌렀을 때 기존 픽이 있는지 확인하고 경고창 띄우기 👇
     function startBattle() {
+        // 이미 저장된 상위 픽 데이터를 가져옵니다.
+        const existingStorage = DB.get(currentTargetKey);
+        
+        // 현재 기간(이번 주/이번 달/올해)에 해당하는 픽이 이미 있는지 검사합니다.
+        const hasExisting = existingStorage.some(item => {
+            const info = getDateInfo(item.date);
+            if (currentTier === 'weekly') {
+                return (info.year === currentBaseInfo.year && info.month === currentBaseInfo.month && info.week === currentBaseInfo.week);
+            } else if (currentTier === 'monthly') {
+                return (info.year === currentBaseInfo.year && info.month === currentBaseInfo.month);
+            } else { // yearly
+                return (info.year === currentBaseInfo.year);
+            }
+        });
+
+        // 이미 뽑아둔 픽이 있다면 경고창을 띄우고, '취소'를 누르면 함수를 종료합니다.
+        if (hasExisting) {
+            const proceed = confirm('이미 이 기간에 뽑아둔 픽이 있습니다.\n새로 월드컵을 진행해서 기존 픽을 덮어쓰시겠습니까?');
+            if (!proceed) return; 
+        }
+
+        // 위 관문을 통과했다면 정상적으로 월드컵을 시작합니다.
         document.getElementById('tournament-start-screen').style.display = 'none';
         document.getElementById('tournament-arena').style.display = 'flex';
-        // 선택된 기간의 후보들만 섞기
         tournamentQueue = shuffle([...tournamentQueue]); 
         nextRoundQueue = [];
         renderNextMatch();
@@ -372,7 +386,23 @@
     }
 
     function finishTournament() {
-        const currentStorage = DB.get(currentTargetKey);
+        let currentStorage = DB.get(currentTargetKey);
+        
+        const beforeCount = currentStorage.length;
+        
+        currentStorage = currentStorage.filter(item => {
+            const info = getDateInfo(item.date);
+            if (currentTier === 'weekly') {
+                return !(info.year === currentBaseInfo.year && info.month === currentBaseInfo.month && info.week === currentBaseInfo.week);
+            } else if (currentTier === 'monthly') {
+                return !(info.year === currentBaseInfo.year && info.month === currentBaseInfo.month);
+            } else { 
+                return !(info.year === currentBaseInfo.year);
+            }
+        });
+        
+        const deletedCount = beforeCount - currentStorage.length;
+
         nextRoundQueue.forEach(winner => {
             currentStorage.push({
                 id: 'curated_' + Date.now() + Math.random().toString(36).substr(2, 4),
@@ -381,8 +411,15 @@
                 selectedAt: new Date().toISOString().split('T')[0]
             });
         });
+        
         DB.set(currentTargetKey, currentStorage);
-        alert(`🎉 월드컵 종료!\n선택된 기록들이 상위 리그로 진출했습니다!`);
+        
+        if (deletedCount > 0) {
+            alert(`🎉 월드컵 종료!\n(이전에 뽑았던 ${deletedCount}개의 픽은 지워지고, 새로운 픽으로 덮어씌워졌습니다!)`);
+        } else {
+            alert(`🎉 월드컵 종료!\n선택된 기록들이 상위 리그로 진출했습니다!`);
+        }
+        
         switchTab('archive');
     }
 
