@@ -72,6 +72,14 @@
         }
         .action-btn:hover { background: var(--primary-hover); }
 
+        /* 첫 화면 (스플래시) UI */
+        #splash-screen {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 70vh; text-align: center;
+        }
+        .splash-title { font-size: 2.2rem; font-weight: 800; color: var(--primary); margin-bottom: 10px; line-height: 1.2; }
+        .splash-subtitle { color: var(--text-muted); font-size: 1rem; margin-bottom: 40px; }
+
         /* 토너먼트 UI */
         .tournament-arena { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
         .vs-badge {
@@ -105,55 +113,65 @@
 <body>
 
 <div class="container">
-    <header>
-        <h1> You are ENOUGH ✨ </h1>
-        <p class="subtitle">기록하고, 고르고, 순간을 남기세요</p>
-    </header>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('daily')">매일 작성</button>
-        <button class="tab-btn" onclick="switchTab('weekly')">주간 픽</button>
-        <button class="tab-btn" onclick="switchTab('monthly')">월간 픽</button>
-        <button class="tab-btn" onclick="switchTab('yearly')">올해의 픽</button>
-        <button class="tab-btn" onclick="switchTab('archive')">📖 보관함</button>
+    <!-- 첫 화면 (대문) -->
+    <div id="splash-screen">
+        <div class="splash-title">✨<br>MOMENT<br>DIARY</div>
+        <p class="splash-subtitle">기록하고, 고르고, 순간을 남기세요</p>
+        <button class="action-btn" style="width: 80%; padding: 16px;" onclick="startApp()">오늘의 모먼트 쓰기</button>
     </div>
 
-    <div id="tab-daily" class="tab-content card">
-        <div class="badge">오늘, 기억에 남는 순간</div>
-        <div class="input-group">
-            <input type="date" id="diaryDate" style="margin-bottom: 8px;">
-            <div class="moment-input"><span class="moment-number">1</span><input type="text" id="moment1" placeholder="첫 번째 순간"></div>
-            <div class="moment-input"><span class="moment-number">2</span><input type="text" id="moment2" placeholder="두 번째 순간 (선택)"></div>
-            <div class="moment-input"><span class="moment-number">3</span><input type="text" id="moment3" placeholder="세 번째 순간 (선택)"></div>
-        </div>
-        <button class="action-btn" onclick="saveDailyMoments()">기록 완료하기</button>
-    </div>
+    <!-- 메인 앱 (처음엔 숨겨짐) -->
+    <div id="main-app" style="display: none;">
+        <header>
+            <h1> You are ENOUGH ✨ </h1>
+            <p class="subtitle">기록하고, 고르고, 순간을 남기세요</p>
+        </header>
 
-    <div id="tab-tournament" class="tab-content card" style="display:none;">
-        <div class="badge" id="tournament-badge">토너먼트</div>
-        <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">순간을 선택하세요!</p>
-        
-        <div id="tournament-start-screen">
-            <div id="tournament-info" style="text-align:center; padding:20px; font-weight:bold;"></div>
-            <button class="action-btn" onclick="startBattle()">⚔️ 기억의 월드컵 시작하기</button>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('daily')">매일 작성</button>
+            <button class="tab-btn" onclick="switchTab('weekly')">주간 픽</button>
+            <button class="tab-btn" onclick="switchTab('monthly')">월간 픽</button>
+            <button class="tab-btn" onclick="switchTab('yearly')">올해의 픽</button>
+            <button class="tab-btn" onclick="switchTab('archive')">📖 보관함</button>
         </div>
 
-        <div id="tournament-arena" class="tournament-arena" style="display: none;">
-            <div class="battle-card" id="cardA" onclick="pickWinner('A')"></div>
-            <div class="vs-badge">VS</div>
-            <div class="battle-card" id="cardB" onclick="pickWinner('B')"></div>
+        <div id="tab-daily" class="tab-content card">
+            <div class="badge">오늘, 기억에 남는 순간</div>
+            <div class="input-group">
+                <input type="date" id="diaryDate" style="margin-bottom: 8px;">
+                <div class="moment-input"><span class="moment-number">1</span><input type="text" id="moment1" placeholder="첫 번째 순간"></div>
+                <div class="moment-input"><span class="moment-number">2</span><input type="text" id="moment2" placeholder="두 번째 순간 (선택)"></div>
+                <div class="moment-input"><span class="moment-number">3</span><input type="text" id="moment3" placeholder="세 번째 순간 (선택)"></div>
+            </div>
+            <button class="action-btn" onclick="saveDailyMoments()">기록 완료하기</button>
         </div>
-    </div>
 
-    <div id="tab-archive" class="tab-content card" style="display:none;">
-        <div class="badge" style="background:#e0f2fe; color:#0284c7;">내 모든 기록 모아보기</div>
-        <div style="display: flex; gap:8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
-            <button class="tab-btn active-filter" style="background:var(--text-main); color:white;" onclick="renderArchive('daily_moments', this)">매일</button>
-            <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('weekly_best', this)">주간</button>
-            <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('monthly_best', this)">월간</button>
-            <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('yearly_best', this)">올해</button>
+        <div id="tab-tournament" class="tab-content card" style="display:none;">
+            <div class="badge" id="tournament-badge">토너먼트</div>
+            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">순간을 선택하세요!</p>
+            
+            <div id="tournament-start-screen">
+                <div id="tournament-info" style="text-align:center; padding:20px; font-weight:bold;"></div>
+                <button class="action-btn" onclick="startBattle()">⚔️ 기억의 월드컵 시작하기</button>
+            </div>
+
+            <div id="tournament-arena" class="tournament-arena" style="display: none;">
+                <div class="battle-card" id="cardA" onclick="pickWinner('A')"></div>
+                <div class="vs-badge">VS</div>
+                <div class="battle-card" id="cardB" onclick="pickWinner('B')"></div>
+            </div>
         </div>
-        <div id="archive-content"></div>
+
+        <div id="tab-archive" class="tab-content card" style="display:none;">
+            <div class="badge" style="background:#e0f2fe; color:#0284c7;">내 모든 기록 모아보기</div>
+            <div style="display: flex; gap:8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+                <button class="tab-btn active-filter" style="background:var(--text-main); color:white;" onclick="renderArchive('daily_moments', this)">매일</button>
+                <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('weekly_best', this)">주간</button>
+                <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('monthly_best', this)">월간</button>
+                <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('yearly_best', this)">올해</button>
+            </div>
+            <div id="archive-content"></div>
+        </div>
     </div>
 </div>
 
@@ -171,6 +189,12 @@
     let tournamentQueue = [];
     let nextRoundQueue = [];
     let currentPair = [];
+
+    // 스플래시 화면에서 메인 앱으로 진입
+    function startApp() {
+        document.getElementById('splash-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+    }
 
     function switchTab(type) {
         document.querySelectorAll('.tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -190,6 +214,17 @@
         }
     }
 
+    // 날짜를 바탕으로 년, 월, 주차 계산하는 도우미 함수
+    function getDateInfo(dateStr) {
+        const d = new Date(dateStr);
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1;
+        const date = d.getDate();
+        const firstDay = new Date(year, month - 1, 1).getDay();
+        const week = Math.ceil((date + firstDay) / 7);
+        return { year, month, week };
+    }
+
     function saveDailyMoments() {
         const dateInput = document.getElementById('diaryDate').value;
         const m1 = document.getElementById('moment1').value.trim();
@@ -199,8 +234,6 @@
         if (!dateInput) { alert('날짜를 선택해주세요!'); return; }
 
         const dailyData = DB.get('daily_moments');
-        
-        // 🚨 [핵심 로직] 선택한 날짜에 이미 작성된 기록이 몇 개인지 검사
         const existingCount = dailyData.filter(item => item.date === dateInput).length;
 
         if (existingCount >= 3) {
@@ -215,14 +248,12 @@
             return;
         }
 
-        // 🚨 [핵심 로직] (기존에 쓴 개수 + 지금 쓰려는 개수)가 3개를 넘는지 검사
         if (existingCount + validMoments.length > 3) {
             const availableSlots = 3 - existingCount;
             alert(`이미 ${existingCount}개의 기록이 있습니다. 빈칸을 ${availableSlots}개만 채워주세요!`);
             return;
         }
 
-        // 통과했다면 정상적으로 저장
         validMoments.forEach(text => {
             dailyData.push({
                 id: 'd_' + Date.now() + Math.random().toString(36).substr(2, 4),
@@ -237,30 +268,62 @@
         document.getElementById('moment3').value = '';
         alert(`${dateInput}의 기록이 저장되었습니다!`);
     }
+
     function setupTournament(tier) {
         currentTier = tier;
         document.getElementById('tournament-start-screen').style.display = 'block';
         document.getElementById('tournament-arena').style.display = 'none';
 
+        // 오늘 날짜(또는 선택한 날짜)를 기준으로 기간 필터링 세팅
+        const baseDateStr = document.getElementById('diaryDate').value || new Date().toISOString().split('T')[0];
+        const baseInfo = getDateInfo(baseDateStr);
+
+        let candidates = [];
+        let titleLabel = '';
+
         if (tier === 'weekly') {
-            document.getElementById('tournament-badge').innerText = '주간 픽 뽑기';
+            titleLabel = `${baseInfo.month}월 ${baseInfo.week}주차 주간 픽 뽑기`;
             currentSourceKey = 'daily_moments'; currentTargetKey = 'weekly_best';
+            
+            // 이번 주에 쓴 기록만 필터링
+            const allDaily = DB.get(currentSourceKey);
+            candidates = allDaily.filter(item => {
+                const info = getDateInfo(item.date);
+                return info.year === baseInfo.year && info.month === baseInfo.month && info.week === baseInfo.week;
+            });
         } else if (tier === 'monthly') {
-            document.getElementById('tournament-badge').innerText = '월간 픽 뽑기';
+            titleLabel = `${baseInfo.year}년 ${baseInfo.month}월 월간 픽 뽑기`;
             currentSourceKey = 'weekly_best'; currentTargetKey = 'monthly_best';
+            
+            // 이번 달에 뽑힌 주간 픽만 필터링
+            const allWeekly = DB.get(currentSourceKey);
+            candidates = allWeekly.filter(item => {
+                const info = getDateInfo(item.date);
+                return info.year === baseInfo.year && info.month === baseInfo.month;
+            });
         } else {
-            document.getElementById('tournament-badge').innerText = '올해의 픽 뽑기';
+            titleLabel = `${baseInfo.year}년 올해의 픽 뽑기`;
             currentSourceKey = 'monthly_best'; currentTargetKey = 'yearly_best';
+            
+            // 올해 뽑힌 월간 픽만 필터링
+            const allMonthly = DB.get(currentSourceKey);
+            candidates = allMonthly.filter(item => {
+                const info = getDateInfo(item.date);
+                return info.year === baseInfo.year;
+            });
         }
 
-        const candidates = DB.get(currentSourceKey);
-        
+        document.getElementById('tournament-badge').innerText = titleLabel;
+
         if (candidates.length < 2) {
-            document.getElementById('tournament-info').innerHTML = `<span style="color:#e11d48">진행할 기록이 부족합니다. (최소 2개 필요)</span>`;
+            document.getElementById('tournament-info').innerHTML = `<span style="color:#e11d48">진행할 기록이 부족합니다. (해당 기간 내 최소 2개 필요)</span>`;
             document.querySelector('#tournament-start-screen button').style.display = 'none';
         } else {
             document.getElementById('tournament-info').innerHTML = `총 <strong>${candidates.length}</strong>개의 기억이 대기 중입니다.`;
             document.querySelector('#tournament-start-screen button').style.display = 'block';
+            
+            // 필터링된 후보들만 큐에 넣기
+            tournamentQueue = candidates; 
         }
     }
 
@@ -275,7 +338,8 @@
     function startBattle() {
         document.getElementById('tournament-start-screen').style.display = 'none';
         document.getElementById('tournament-arena').style.display = 'flex';
-        tournamentQueue = shuffle([...DB.get(currentSourceKey)]);
+        // 선택된 기간의 후보들만 섞기
+        tournamentQueue = shuffle([...tournamentQueue]); 
         nextRoundQueue = [];
         renderNextMatch();
     }
@@ -319,20 +383,28 @@
         switchTab('archive');
     }
 
-    // 🗑️ 새롭게 추가된 삭제 기능
     function deleteItem(id, storageKey) {
         if (!confirm('이 기록을 정말 지울까요?')) return;
-        
         const records = DB.get(storageKey);
         const filtered = records.filter(item => item.id !== id);
         DB.set(storageKey, filtered);
-        
-        // 지우고 나서 화면 새로고침
         const activeFilterBtn = document.querySelector('.active-filter');
         renderArchive(storageKey, activeFilterBtn);
     }
 
-    // 보관함 렌더링 기능 (삭제 버튼 포함)
+    function editItem(id, storageKey) {
+        const records = DB.get(storageKey);
+        const itemIndex = records.findIndex(item => item.id === id);
+        if (itemIndex === -1) return;
+        const newText = prompt('기록을 수정해주세요:', records[itemIndex].text);
+        if (newText !== null && newText.trim() !== '') {
+            records[itemIndex].text = newText.trim();
+            DB.set(storageKey, records);
+            const activeFilterBtn = document.querySelector('.active-filter');
+            renderArchive(storageKey, activeFilterBtn);
+        }
+    }
+
     function renderArchive(storageKey, btnElement) {
         if (btnElement) {
             document.querySelectorAll('#tab-archive .tab-btn').forEach(b => {
@@ -374,14 +446,17 @@
             items.forEach(item => {
                 const metaLabel = item.selectedAt ? `<div class="archive-meta">승격: ${item.selectedAt}</div>` : '';
                 
-                // 삭제 버튼이 결합된 형태
+                // 아이콘(✏️, 🗑️)으로 변경된 수정/삭제 버튼
                 body.innerHTML += `
                     <div class="archive-item" style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
+                        <div style="flex: 1; padding-right: 12px;">
                             ${metaLabel}
-                            <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main);">${item.text}</div>
+                            <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); word-break: keep-all;">${item.text}</div>
                         </div>
-                        <button onclick="deleteItem('${item.id}', '${storageKey}')" style="background:none; border:none; color:#ef4444; font-size:0.8rem; cursor:pointer; padding:4px 0 4px 12px; font-weight:bold; white-space:nowrap;">지우기</button>
+                        <div style="display: flex; gap: 12px; flex-shrink: 0;">
+                            <button onclick="editItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:1.1rem; cursor:pointer; padding:0;">✏️</button>
+                            <button onclick="deleteItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:1.1rem; cursor:pointer; padding:0;">🗑️</button>
+                        </div>
                     </div>
                 `;
             });
