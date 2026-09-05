@@ -98,7 +98,7 @@
         /* 보관함 (아코디언 UI) */
         .archive-header {
             background: #f1f5f9; padding: 14px 16px; border-radius: 8px; margin-bottom: 8px;
-            cursor: pointer; font-weight: 700; color: #334155; display: flex; justify-content: space-between;
+            cursor: pointer; font-weight: 700; color: #334155; display: flex; justify-content: space-between; align-items: center;
             transition: background 0.2s;
         }
         .archive-header:hover { background: #e2e8f0; }
@@ -108,7 +108,6 @@
         }
         .archive-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
         .archive-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-        .archive-meta { font-size: 0.75rem; color: var(--primary); margin-bottom: 4px; font-weight: 600; }
         .empty-state { text-align: center; color: var(--text-muted); padding: 30px 0; font-size: 0.95rem; }
     </style>
 </head>
@@ -132,7 +131,7 @@
             <button class="tab-btn" onclick="switchTab('weekly')">주간 픽</button>
             <button class="tab-btn" onclick="switchTab('monthly')">월간 픽</button>
             <button class="tab-btn" onclick="switchTab('yearly')">올해의 픽</button>
-            <button class="tab-btn" onclick="switchTab('archive')">📖 보관함</button>
+            <button class="tab-btn" onclick="switchTab('archive')">📖 기록보관함</button>
         </div>
 
         <div id="tab-daily" class="tab-content card">
@@ -216,9 +215,9 @@
         const d = new Date(dateStr);
         const year = d.getFullYear();
         const month = d.getMonth() + 1;
-        const date = d.getDate();
-        const firstDay = new Date(year, month - 1, 1).getDay();
-        const week = Math.ceil((date + firstDay) / 7);
+        const start = new Date(year, 0, 1);
+        const pastDaysOfYear = Math.floor((d - start) / 86400000);
+        const week = Math.ceil((pastDaysOfYear + start.getDay() + 1) / 7);
         return { year, month, week };
     }
 
@@ -276,13 +275,13 @@
         let titleLabel = '';
 
         if (tier === 'weekly') {
-            titleLabel = `${currentBaseInfo.month}월 ${currentBaseInfo.week}주차 픽`;
+            titleLabel = `${currentBaseInfo.year}년 ${currentBaseInfo.week}주차 픽`;
             currentSourceKey = 'daily_moments'; currentTargetKey = 'weekly_best';
             
             const allDaily = DB.get(currentSourceKey);
             candidates = allDaily.filter(item => {
                 const info = getDateInfo(item.date);
-                return info.year === currentBaseInfo.year && info.month === currentBaseInfo.month && info.week === currentBaseInfo.week;
+                return info.year === currentBaseInfo.year && info.week === currentBaseInfo.week;
             });
         } else if (tier === 'monthly') {
             titleLabel = `${currentBaseInfo.year}년 ${currentBaseInfo.month}월 픽`;
@@ -328,7 +327,6 @@
         }
     }
 
-    // 👇 핵심 방어벽 로직: 3개 초과 방지 👇
     function toggleSelection(id, cardElement) {
         if (selectedIds.has(id)) {
             selectedIds.delete(id);
@@ -343,23 +341,29 @@
         }
     }
 
+    // 👇 한 줄 코멘트 입력받고 저장하는 로직 추가 👇
     function finishSelection() {
         if (selectedIds.size === 0) {
             alert('최소 한 개의 순간은 선택해주세요!');
             return;
         }
 
+        let groupKey = '';
+        if (currentTier === 'weekly') {
+            groupKey = `${currentBaseInfo.year}-W${String(currentBaseInfo.week).padStart(2, '0')}`;
+        } else if (currentTier === 'monthly') {
+            const mm = String(currentBaseInfo.month).padStart(2, '0');
+            groupKey = `${currentBaseInfo.year}-${mm}`;
+        } else { 
+            groupKey = `${currentBaseInfo.year}`;
+        }
+
         const existingStorage = DB.get(currentTargetKey);
-        
         const hasExisting = existingStorage.some(item => {
             const info = getDateInfo(item.date);
-            if (currentTier === 'weekly') {
-                return (info.year === currentBaseInfo.year && info.month === currentBaseInfo.month && info.week === currentBaseInfo.week);
-            } else if (currentTier === 'monthly') {
-                return (info.year === currentBaseInfo.year && info.month === currentBaseInfo.month);
-            } else { 
-                return (info.year === currentBaseInfo.year);
-            }
+            if (currentTier === 'weekly') return (info.year === currentBaseInfo.year && info.week === currentBaseInfo.week);
+            if (currentTier === 'monthly') return (info.year === currentBaseInfo.year && info.month === currentBaseInfo.month);
+            return (info.year === currentBaseInfo.year);
         });
 
         if (hasExisting) {
@@ -367,39 +371,49 @@
             if (!proceed) return; 
         }
 
+        // 🌟 이번 기간(주/월/년)을 요약하는 한 줄 멘트 팝업!
+        const periodComment = prompt('이 기간을 한 줄로 표현한다면?\n(작성하지 않으려면 빈칸으로 [확인]을 눌러주세요.)', '');
+        
+        // 멘트를 저장하는 공간 (취소 누르지 않았을 때만 저장)
+        if (periodComment !== null) {
+            let commentsDB = JSON.parse(localStorage.getItem('period_comments') || '{}');
+            if (periodComment.trim() === '') {
+                delete commentsDB[groupKey]; // 비워두면 기존 코멘트도 삭제
+            } else {
+                commentsDB[groupKey] = periodComment.trim();
+            }
+            localStorage.setItem('period_comments', JSON.stringify(commentsDB));
+        }
+
         let currentStorage = DB.get(currentTargetKey);
         const beforeCount = currentStorage.length;
         
         currentStorage = currentStorage.filter(item => {
             const info = getDateInfo(item.date);
-            if (currentTier === 'weekly') {
-                return !(info.year === currentBaseInfo.year && info.month === currentBaseInfo.month && info.week === currentBaseInfo.week);
-            } else if (currentTier === 'monthly') {
-                return !(info.year === currentBaseInfo.year && info.month === currentBaseInfo.month);
-            } else { 
-                return !(info.year === currentBaseInfo.year);
-            }
+            if (currentTier === 'weekly') return !(info.year === currentBaseInfo.year && info.week === currentBaseInfo.week);
+            if (currentTier === 'monthly') return !(info.year === currentBaseInfo.year && info.month === currentBaseInfo.month);
+            return !(info.year === currentBaseInfo.year);
         });
         
         const deletedCount = beforeCount - currentStorage.length;
 
         const selectedItems = candidateItems.filter(item => selectedIds.has(item.id));
         
+        // 🌟 승격 날짜(selectedAt) 데이터 제거 (더 깔끔하게!)
         selectedItems.forEach(winner => {
             currentStorage.push({
                 id: 'curated_' + Date.now() + Math.random().toString(36).substr(2, 4),
                 text: winner.text,
-                date: winner.date,
-                selectedAt: new Date().toISOString().split('T')[0]
+                date: winner.date
             });
         });
         
         DB.set(currentTargetKey, currentStorage);
         
         if (deletedCount > 0) {
-            alert(`✨ 승급 완료!\n(기존 픽들이 삭제되고, 선택하신 ${selectedItems.length}개의 기록으로 덮어씌워졌습니다!)`);
+            alert(`✨ 승급 완료!\n(기존 픽들이 삭제되고 새로운 픽으로 덮어씌워졌습니다!)`);
         } else {
-            alert(`✨ 승급 완료!\n선택하신 ${selectedItems.length}개의 기록이 상위 리그로 진출했습니다!`);
+            alert(`✨ 승급 완료!`);
         }
         
         switchTab('archive');
@@ -446,6 +460,9 @@
             return;
         }
 
+        // 🌟 저장된 한 줄 코멘트들 불러오기
+        const periodCommentsDB = JSON.parse(localStorage.getItem('period_comments') || '{}');
+
         const grouped = {};
         records.forEach(item => {
             const info = getDateInfo(item.date);
@@ -453,15 +470,15 @@
             let displayTitle = `📅 ${item.date}`;
 
             if (storageKey === 'weekly_best') {
-                groupKey = `${info.year}-W${String(info.month).padStart(2, '0')}-${info.week}`;
-                displayTitle = `🔖 Week ${info.week} (${info.year}년 ${info.month}월)`;
+                groupKey = `${info.year}-W${String(info.week).padStart(2, '0')}`;
+                displayTitle = `🔖 ${info.year}년 ${info.week}주차`; // 심플하게 축소
             } else if (storageKey === 'monthly_best') {
                 const mm = String(info.month).padStart(2, '0');
                 groupKey = `${info.year}-${mm}`;
-                displayTitle = `🌙 ${info.year}-${mm}`;
+                displayTitle = `🌙 ${info.year}년 ${mm}월`;
             } else if (storageKey === 'yearly_best') {
                 groupKey = `${info.year}`;
-                displayTitle = `🏆 ${info.year}`;
+                displayTitle = `🏆 ${info.year}년`;
             }
 
             if (!grouped[groupKey]) grouped[groupKey] = { title: displayTitle, items: [] };
@@ -474,21 +491,22 @@
             const groupData = grouped[key];
             const items = groupData.items;
             
+            // 🌟 코멘트가 있으면 예쁘게 색깔 넣어서 제목 옆에 붙여주기
+            const commentText = periodCommentsDB[key] ? `<span style="margin-left: 8px; font-weight: 500; font-size: 0.85rem; color: var(--primary);">“${periodCommentsDB[key]}”</span>` : '';
+            
             const header = document.createElement('div');
             header.className = 'archive-header';
-            header.innerHTML = `<span>${groupData.title}</span> <span>${items.length}개 ▾</span>`;
+            header.innerHTML = `<span style="display:flex; align-items:center; flex-wrap:wrap;">${groupData.title} ${commentText}</span> <span>${items.length}개 ▾</span>`;
             
             const body = document.createElement('div');
             body.className = 'archive-body';
             body.style.display = 'none'; 
             
             items.forEach(item => {
-                const metaLabel = item.selectedAt ? `<div class="archive-meta">승격: ${item.selectedAt}</div>` : '';
-                
+                // 🌟 승격 날짜(metaLabel) 아예 제거해서 깔끔하게 만듦
                 body.innerHTML += `
                     <div class="archive-item" style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="flex: 1; padding-right: 12px;">
-                            ${metaLabel}
+                        <div style="flex: 1; padding-right: 12px; margin-top: 4px;">
                             <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); word-break: keep-all;">${item.text}</div>
                         </div>
                         <div style="display: flex; gap: 12px; flex-shrink: 0;">
@@ -502,7 +520,7 @@
             header.onclick = () => {
                 const isHidden = body.style.display === 'none';
                 body.style.display = isHidden ? 'block' : 'none';
-                header.innerHTML = `<span>${groupData.title}</span> <span>${items.length}개 ${isHidden ? '▴' : '▾'}</span>`;
+                header.innerHTML = `<span style="display:flex; align-items:center; flex-wrap:wrap;">${groupData.title} ${commentText}</span> <span>${items.length}개 ${isHidden ? '▴' : '▾'}</span>`;
             };
 
             target.appendChild(header);
