@@ -2,13 +2,13 @@
 <html lang="ko">
 <head>
     <meta property="og:title" content="✨ MOMENT DIARY">
-<meta property="og:description" content="오늘 하루, 가장 기억에 남는 순간을 기록해 보세요.">
-<meta property="og:image" content="https://i.pinimg.com/1200x/dd/35/4a/dd354af537023b3e3f298671744abdb6.jpg">
-<meta property="og:url" content="https://happy-stardust.github.io/my_moment_diary/">
+    <meta property="og:description" content="오늘 하루, 가장 기억에 남는 순간을 기록해 보세요.">
+    <meta property="og:image" content="https://i.pinimg.com/1200x/dd/35/4a/dd354af537023b3e3f298671744abdb6.jpg">
+    <meta property="og:url" content="https://happy-stardust.github.io/my_moment_diary/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moment DIARY</title>
-     <link rel="apple-touch-icon" href="https://i.pinimg.com/1200x/dd/35/4a/dd354af537023b3e3f298671744abdb6.jpg">
+    <link rel="apple-touch-icon" href="https://i.pinimg.com/1200x/dd/35/4a/dd354af537023b3e3f298671744abdb6.jpg">
     <style>
         :root {
             --primary: #4f46e5;
@@ -190,7 +190,6 @@
         }
     }
 
-    // 1. 최소 1개 이상 작성 검증 및 저장
     function saveDailyMoments() {
         const dateInput = document.getElementById('diaryDate').value;
         const m1 = document.getElementById('moment1').value.trim();
@@ -199,7 +198,6 @@
 
         if (!dateInput) { alert('날짜를 선택해주세요!'); return; }
 
-        // 빈 칸 필터링
         const validMoments = [m1, m2, m3].filter(text => text !== '');
 
         if (validMoments.length === 0) {
@@ -223,7 +221,6 @@
         alert(`${dateInput}의 기록이 저장되었습니다!`);
     }
 
-    // (토너먼트 로직은 V3와 동일하게 유지)
     function setupTournament(tier) {
         currentTier = tier;
         document.getElementById('tournament-start-screen').style.display = 'block';
@@ -306,7 +303,20 @@
         switchTab('archive');
     }
 
-    // 2. 보관함 날짜별 그룹핑 및 아코디언(접기) UI 적용
+    // 🗑️ 새롭게 추가된 삭제 기능
+    function deleteItem(id, storageKey) {
+        if (!confirm('이 기록을 정말 지울까요?')) return;
+        
+        const records = DB.get(storageKey);
+        const filtered = records.filter(item => item.id !== id);
+        DB.set(storageKey, filtered);
+        
+        // 지우고 나서 화면 새로고침
+        const activeFilterBtn = document.querySelector('.active-filter');
+        renderArchive(storageKey, activeFilterBtn);
+    }
+
+    // 보관함 렌더링 기능 (삭제 버튼 포함)
     function renderArchive(storageKey, btnElement) {
         if (btnElement) {
             document.querySelectorAll('#tab-archive .tab-btn').forEach(b => {
@@ -326,41 +336,40 @@
             return;
         }
 
-        // 2-1. 날짜(date)를 기준으로 데이터 묶기
         const grouped = {};
         records.forEach(item => {
             if (!grouped[item.date]) grouped[item.date] = [];
             grouped[item.date].push(item);
         });
 
-        // 2-2. 최신 날짜순으로 정렬
         const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
 
-        // 2-3. 아코디언 UI 그리기
         sortedDates.forEach(date => {
             const items = grouped[date];
             
-            // 날짜 헤더 (클릭 시 열림/닫힘)
             const header = document.createElement('div');
             header.className = 'archive-header';
             header.innerHTML = `<span>📅 ${date}</span> <span>${items.length}개 ▾</span>`;
             
-            // 내용 영역 (기본적으로 닫힘)
             const body = document.createElement('div');
             body.className = 'archive-body';
             body.style.display = 'none'; 
             
             items.forEach(item => {
                 const metaLabel = item.selectedAt ? `<div class="archive-meta">승격: ${item.selectedAt}</div>` : '';
+                
+                // 삭제 버튼이 결합된 형태
                 body.innerHTML += `
-                    <div class="archive-item">
-                        ${metaLabel}
-                        <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main);">${item.text}</div>
+                    <div class="archive-item" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            ${metaLabel}
+                            <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main);">${item.text}</div>
+                        </div>
+                        <button onclick="deleteItem('${item.id}', '${storageKey}')" style="background:none; border:none; color:#ef4444; font-size:0.8rem; cursor:pointer; padding:4px 0 4px 12px; font-weight:bold; white-space:nowrap;">지우기</button>
                     </div>
                 `;
             });
 
-            // 클릭 이벤트 (토글)
             header.onclick = () => {
                 const isHidden = body.style.display === 'none';
                 body.style.display = isHidden ? 'block' : 'none';
