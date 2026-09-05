@@ -80,7 +80,7 @@
         .splash-title { font-size: 2.2rem; font-weight: 800; color: var(--primary); margin-bottom: 10px; line-height: 1.2; }
         .splash-subtitle { color: var(--text-muted); font-size: 1rem; margin-bottom: 40px; }
 
-        /* 다중 선택 UI (기존 토너먼트 대체) */
+        /* 다중 선택 UI */
         .select-card {
             position: relative; background: #f8fafc; border: 2px solid var(--border); border-radius: 12px;
             padding: 20px; text-align: left; cursor: pointer; transition: all 0.2s;
@@ -146,13 +146,12 @@
             <button class="action-btn" onclick="saveDailyMoments()">기록 완료하기</button>
         </div>
 
-        <!-- 👇 리스트 다중 선택 방식으로 변경된 토너먼트 탭 👇 -->
         <div id="tab-tournament" class="tab-content card" style="display:none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div class="badge" id="tournament-badge" style="margin: 0;">픽 고르기</div>
                 <input type="date" id="tournamentDate" style="padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); outline: none;" onchange="setupTournament(currentTier)">
             </div>
-            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">가장 좋았던 순간을 <strong>자유롭게 여러 개</strong> 골라보세요!</p>
+            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">가장 좋았던 순간을 <strong>최대 3개까지</strong> 골라보세요!</p>
             
             <div id="selection-arena">
                 <div id="candidate-list" style="margin-bottom: 20px;"></div>
@@ -187,7 +186,6 @@
     let currentTargetKey = '';
     let currentBaseInfo = null; 
     
-    // 선택을 위한 새로운 변수들
     let candidateItems = [];
     let selectedIds = new Set();
 
@@ -308,9 +306,8 @@
 
         document.getElementById('tournament-badge').innerText = titleLabel;
 
-        // 후보 렌더링 로직
         candidateItems = candidates;
-        selectedIds.clear(); // 선택 초기화
+        selectedIds.clear(); 
         const container = document.getElementById('candidate-list');
         container.innerHTML = '';
 
@@ -325,18 +322,22 @@
                 card.className = 'select-card';
                 card.id = `cand-${item.id}`;
                 card.innerHTML = `<span class="battle-date">${item.date}</span>${item.text}`;
-                // 누르면 토글되는 기능
                 card.onclick = () => toggleSelection(item.id, card);
                 container.appendChild(card);
             });
         }
     }
 
+    // 👇 핵심 방어벽 로직: 3개 초과 방지 👇
     function toggleSelection(id, cardElement) {
         if (selectedIds.has(id)) {
             selectedIds.delete(id);
             cardElement.classList.remove('selected');
         } else {
+            if (selectedIds.size >= 3) {
+                alert('가장 빛나는 순간은 딱 3개까지만 고를 수 있어요! ✨');
+                return;
+            }
             selectedIds.add(id);
             cardElement.classList.add('selected');
         }
@@ -382,7 +383,6 @@
         
         const deletedCount = beforeCount - currentStorage.length;
 
-        // 선택된 아이템들만 뽑아서 추가
         const selectedItems = candidateItems.filter(item => selectedIds.has(item.id));
         
         selectedItems.forEach(winner => {
