@@ -177,8 +177,18 @@
         set: (key, val) => localStorage.setItem(key, JSON.stringify(val))
     };
 
-    document.getElementById('diaryDate').valueAsDate = new Date();
-    document.getElementById('tournamentDate').valueAsDate = new Date(); 
+    // 👇 핵심 수정: 한국 시간(로컬 기기 시간) 기준으로 정확하게 오늘 날짜(YYYY-MM-DD)를 뽑아내는 함수 👇
+    function getTodayStr() {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // 이제 영국 시간(UTC)이 아니라 한국 시간 기준으로 달력을 세팅합니다!
+    document.getElementById('diaryDate').value = getTodayStr();
+    document.getElementById('tournamentDate').value = getTodayStr(); 
 
     let currentTier = '';
     let currentSourceKey = '';
@@ -268,7 +278,8 @@
     function setupTournament(tier) {
         currentTier = tier;
 
-        const baseDateStr = document.getElementById('tournamentDate').value || new Date().toISOString().split('T')[0];
+        // 토너먼트도 로컬 타임을 기준으로 가져오도록 수정
+        const baseDateStr = document.getElementById('tournamentDate').value || getTodayStr();
         currentBaseInfo = getDateInfo(baseDateStr);
 
         let candidates = [];
@@ -341,7 +352,6 @@
         }
     }
 
-    // 👇 한 줄 코멘트 입력받고 저장하는 로직 추가 👇
     function finishSelection() {
         if (selectedIds.size === 0) {
             alert('최소 한 개의 순간은 선택해주세요!');
@@ -371,14 +381,12 @@
             if (!proceed) return; 
         }
 
-        // 🌟 이번 기간(주/월/년)을 요약하는 한 줄 멘트 팝업!
         const periodComment = prompt('이 기간을 한 줄로 표현한다면?\n(작성하지 않으려면 빈칸으로 [확인]을 눌러주세요.)', '');
         
-        // 멘트를 저장하는 공간 (취소 누르지 않았을 때만 저장)
         if (periodComment !== null) {
             let commentsDB = JSON.parse(localStorage.getItem('period_comments') || '{}');
             if (periodComment.trim() === '') {
-                delete commentsDB[groupKey]; // 비워두면 기존 코멘트도 삭제
+                delete commentsDB[groupKey]; 
             } else {
                 commentsDB[groupKey] = periodComment.trim();
             }
@@ -399,7 +407,6 @@
 
         const selectedItems = candidateItems.filter(item => selectedIds.has(item.id));
         
-        // 🌟 승격 날짜(selectedAt) 데이터 제거 (더 깔끔하게!)
         selectedItems.forEach(winner => {
             currentStorage.push({
                 id: 'curated_' + Date.now() + Math.random().toString(36).substr(2, 4),
@@ -460,7 +467,6 @@
             return;
         }
 
-        // 🌟 저장된 한 줄 코멘트들 불러오기
         const periodCommentsDB = JSON.parse(localStorage.getItem('period_comments') || '{}');
 
         const grouped = {};
@@ -471,7 +477,7 @@
 
             if (storageKey === 'weekly_best') {
                 groupKey = `${info.year}-W${String(info.week).padStart(2, '0')}`;
-                displayTitle = `🔖 ${info.year}년 ${info.week}주차`; // 심플하게 축소
+                displayTitle = `🔖 ${info.year}년 ${info.week}주차`; 
             } else if (storageKey === 'monthly_best') {
                 const mm = String(info.month).padStart(2, '0');
                 groupKey = `${info.year}-${mm}`;
@@ -491,7 +497,6 @@
             const groupData = grouped[key];
             const items = groupData.items;
             
-            // 🌟 코멘트가 있으면 예쁘게 색깔 넣어서 제목 옆에 붙여주기
             const commentText = periodCommentsDB[key] ? `<span style="margin-left: 8px; font-weight: 500; font-size: 0.85rem; color: var(--primary);">“${periodCommentsDB[key]}”</span>` : '';
             
             const header = document.createElement('div');
@@ -503,7 +508,6 @@
             body.style.display = 'none'; 
             
             items.forEach(item => {
-                // 🌟 승격 날짜(metaLabel) 아예 제거해서 깔끔하게 만듦
                 body.innerHTML += `
                     <div class="archive-item" style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1; padding-right: 12px; margin-top: 4px;">
