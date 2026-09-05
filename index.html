@@ -80,18 +80,20 @@
         .splash-title { font-size: 2.2rem; font-weight: 800; color: var(--primary); margin-bottom: 10px; line-height: 1.2; }
         .splash-subtitle { color: var(--text-muted); font-size: 1rem; margin-bottom: 40px; }
 
-        /* 토너먼트 UI */
-        .tournament-arena { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
-        .vs-badge {
-            align-self: center; background: #1e293b; color: white; font-weight: 800; font-size: 0.8rem; padding: 4px 12px; border-radius: 20px;
+        /* 다중 선택 UI (기존 토너먼트 대체) */
+        .select-card {
+            position: relative; background: #f8fafc; border: 2px solid var(--border); border-radius: 12px;
+            padding: 20px; text-align: left; cursor: pointer; transition: all 0.2s;
+            font-size: 1.05rem; line-height: 1.5; color: var(--text-main); margin-bottom: 12px;
         }
-        .battle-card {
-            background: #f8fafc; border: 2px solid var(--border); border-radius: 12px;
-            padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s;
-            font-size: 1.1rem; line-height: 1.5; font-weight: 600; color: var(--text-main);
+        .select-card:hover { border-color: #93c5fd; }
+        .select-card.selected {
+            border-color: var(--primary); background: #eff6ff; box-shadow: 0 0 0 1px var(--primary);
         }
-        .battle-card:hover { border-color: var(--primary); background: #eff6ff; transform: translateY(-2px); }
-        .battle-date { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 400; }
+        .select-card.selected::after {
+            content: "✔️"; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 1.2rem; color: var(--primary);
+        }
+        .battle-date { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 400; }
 
         /* 보관함 (아코디언 UI) */
         .archive-header {
@@ -130,7 +132,7 @@
             <button class="tab-btn" onclick="switchTab('weekly')">주간 픽</button>
             <button class="tab-btn" onclick="switchTab('monthly')">월간 픽</button>
             <button class="tab-btn" onclick="switchTab('yearly')">올해의 픽</button>
-            <button class="tab-btn" onclick="switchTab('archive')">📖 기록보관함</button>
+            <button class="tab-btn" onclick="switchTab('archive')">📖 보관함</button>
         </div>
 
         <div id="tab-daily" class="tab-content card">
@@ -144,22 +146,17 @@
             <button class="action-btn" onclick="saveDailyMoments()">기록 완료하기</button>
         </div>
 
+        <!-- 👇 리스트 다중 선택 방식으로 변경된 토너먼트 탭 👇 -->
         <div id="tab-tournament" class="tab-content card" style="display:none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div class="badge" id="tournament-badge" style="margin: 0;">토너먼트</div>
+                <div class="badge" id="tournament-badge" style="margin: 0;">픽 고르기</div>
                 <input type="date" id="tournamentDate" style="padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; color: var(--text-muted); outline: none;" onchange="setupTournament(currentTier)">
             </div>
-            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">어느 시점의 순간을 돌아볼까요?</p>
+            <p class="subtitle" id="tournament-desc" style="margin-bottom: 16px;">가장 좋았던 순간을 <strong>자유롭게 여러 개</strong> 골라보세요!</p>
             
-            <div id="tournament-start-screen">
-                <div id="tournament-info" style="text-align:center; padding:20px; font-weight:bold;"></div>
-                <button class="action-btn" onclick="startBattle()">🌿 베스트 모먼트 선택하기</button>
-            </div>
-
-            <div id="tournament-arena" class="tournament-arena" style="display: none;">
-                <div class="battle-card" id="cardA" onclick="pickWinner('A')"></div>
-                <div class="vs-badge">VS</div>
-                <div class="battle-card" id="cardB" onclick="pickWinner('B')"></div>
+            <div id="selection-arena">
+                <div id="candidate-list" style="margin-bottom: 20px;"></div>
+                <button id="submit-selection-btn" class="action-btn" onclick="finishSelection()">✨ 선택한 순간 승급하기</button>
             </div>
         </div>
 
@@ -188,10 +185,11 @@
     let currentTier = '';
     let currentSourceKey = '';
     let currentTargetKey = '';
-    let tournamentQueue = [];
-    let nextRoundQueue = [];
-    let currentPair = [];
     let currentBaseInfo = null; 
+    
+    // 선택을 위한 새로운 변수들
+    let candidateItems = [];
+    let selectedIds = new Set();
 
     function startApp() {
         document.getElementById('splash-screen').style.display = 'none';
@@ -272,8 +270,6 @@
 
     function setupTournament(tier) {
         currentTier = tier;
-        document.getElementById('tournament-start-screen').style.display = 'block';
-        document.getElementById('tournament-arena').style.display = 'none';
 
         const baseDateStr = document.getElementById('tournamentDate').value || new Date().toISOString().split('T')[0];
         currentBaseInfo = getDateInfo(baseDateStr);
@@ -312,25 +308,46 @@
 
         document.getElementById('tournament-badge').innerText = titleLabel;
 
-        if (candidates.length < 2) {
-            document.getElementById('tournament-info').innerHTML = `<span style="color:#e11d48">진행할 기록이 부족합니다. (최소 2개 필요)</span>`;
-            document.querySelector('#tournament-start-screen button').style.display = 'none';
+        // 후보 렌더링 로직
+        candidateItems = candidates;
+        selectedIds.clear(); // 선택 초기화
+        const container = document.getElementById('candidate-list');
+        container.innerHTML = '';
+
+        if (candidates.length === 0) {
+            container.innerHTML = `<div class="empty-state">해당 기간에 기록된 순간이 없습니다.</div>`;
+            document.getElementById('submit-selection-btn').style.display = 'none';
         } else {
-            document.getElementById('tournament-info').innerHTML = `총 <strong>${candidates.length}</strong>개의 기억이 대기 중입니다.`;
-            document.querySelector('#tournament-start-screen button').style.display = 'block';
-            tournamentQueue = candidates; 
+            document.getElementById('submit-selection-btn').style.display = 'block';
+            
+            candidates.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'select-card';
+                card.id = `cand-${item.id}`;
+                card.innerHTML = `<span class="battle-date">${item.date}</span>${item.text}`;
+                // 누르면 토글되는 기능
+                card.onclick = () => toggleSelection(item.id, card);
+                container.appendChild(card);
+            });
         }
     }
 
-    function shuffle(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
+    function toggleSelection(id, cardElement) {
+        if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+            cardElement.classList.remove('selected');
+        } else {
+            selectedIds.add(id);
+            cardElement.classList.add('selected');
         }
-        return array;
     }
 
-    function startBattle() {
+    function finishSelection() {
+        if (selectedIds.size === 0) {
+            alert('최소 한 개의 순간은 선택해주세요!');
+            return;
+        }
+
         const existingStorage = DB.get(currentTargetKey);
         
         const hasExisting = existingStorage.some(item => {
@@ -345,44 +362,11 @@
         });
 
         if (hasExisting) {
-            const proceed = confirm('이미 이 기간에 뽑아둔 픽이 있습니다.\n 기존 픽을 덮어쓰시겠습니까?');
+            const proceed = confirm('이미 이 기간에 뽑아둔 픽이 있습니다.\n새로 선택한 기록들로 덮어쓰시겠습니까?');
             if (!proceed) return; 
         }
 
-        document.getElementById('tournament-start-screen').style.display = 'none';
-        document.getElementById('tournament-arena').style.display = 'flex';
-        tournamentQueue = shuffle([...tournamentQueue]); 
-        nextRoundQueue = [];
-        renderNextMatch();
-    }
-
-    function renderNextMatch() {
-        if (tournamentQueue.length === 0) {
-            if (nextRoundQueue.length <= 3) { finishTournament(); return; } 
-            else {
-                tournamentQueue = shuffle([...nextRoundQueue]);
-                nextRoundQueue = [];
-                alert(`다음 라운드로 진출합니다! (남은 후보: ${tournamentQueue.length}개)`);
-            }
-        }
-        if (tournamentQueue.length === 1) {
-            nextRoundQueue.push(tournamentQueue.pop());
-            renderNextMatch();
-            return;
-        }
-        currentPair = [tournamentQueue.pop(), tournamentQueue.pop()];
-        document.getElementById('cardA').innerHTML = `<span class="battle-date">${currentPair[0].date}</span>${currentPair[0].text}`;
-        document.getElementById('cardB').innerHTML = `<span class="battle-date">${currentPair[1].date}</span>${currentPair[1].text}`;
-    }
-
-    function pickWinner(choice) {
-        nextRoundQueue.push(choice === 'A' ? currentPair[0] : currentPair[1]);
-        renderNextMatch();
-    }
-
-    function finishTournament() {
         let currentStorage = DB.get(currentTargetKey);
-        
         const beforeCount = currentStorage.length;
         
         currentStorage = currentStorage.filter(item => {
@@ -398,7 +382,10 @@
         
         const deletedCount = beforeCount - currentStorage.length;
 
-        nextRoundQueue.forEach(winner => {
+        // 선택된 아이템들만 뽑아서 추가
+        const selectedItems = candidateItems.filter(item => selectedIds.has(item.id));
+        
+        selectedItems.forEach(winner => {
             currentStorage.push({
                 id: 'curated_' + Date.now() + Math.random().toString(36).substr(2, 4),
                 text: winner.text,
@@ -410,9 +397,9 @@
         DB.set(currentTargetKey, currentStorage);
         
         if (deletedCount > 0) {
-            alert(`🎉 모먼트 선택 완료!\n(이전에 뽑았던 ${deletedCount}개의 픽은 지워지고, 새로운 픽으로 덮어씌워졌습니다!)`);
+            alert(`✨ 승급 완료!\n(기존 픽들이 삭제되고, 선택하신 ${selectedItems.length}개의 기록으로 덮어씌워졌습니다!)`);
         } else {
-            alert(`🎉 모먼트 선택 완료!\n선택된 기록들이 상위 리그로 진출했습니다!`);
+            alert(`✨ 승급 완료!\n선택하신 ${selectedItems.length}개의 기록이 상위 리그로 진출했습니다!`);
         }
         
         switchTab('archive');
@@ -440,7 +427,6 @@
         }
     }
 
-    // 👇 핵심 업데이트: 탭별로 폴더(아코디언) 제목을 다르게 표시하는 로직 추가 👇
     function renderArchive(storageKey, btnElement) {
         if (btnElement) {
             document.querySelectorAll('#tab-archive .tab-btn').forEach(b => {
@@ -460,7 +446,6 @@
             return;
         }
 
-        // 묶음 기준(groupKey)과 화면에 보여줄 제목(displayTitle)을 다르게 설정
         const grouped = {};
         records.forEach(item => {
             const info = getDateInfo(item.date);
@@ -483,7 +468,6 @@
             grouped[groupKey].items.push(item);
         });
 
-        // 최신순 정렬
         const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
         sortedKeys.forEach(key => {
