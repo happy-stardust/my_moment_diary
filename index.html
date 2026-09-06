@@ -3,12 +3,12 @@
 <head>
     <meta property="og:title" content="✨ MOMENT DIARY">
     <meta property="og:description" content="오늘 하루, 가장 기억에 남는 순간을 기록해 보세요.">
-    <meta property="og:image" content="https://i.pinimg.com/1200x/1d/68/27/1d6827969eb41c39e0f5f5a3369c2b7c.jpg">
+    <meta property="og:image" content="https://i.pinimg.com/1200x/dd/35/4a/dd354af537023b3e3f298671744abdb6.jpg">
     <meta property="og:url" content="https://happy-stardust.github.io/my_moment_diary/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moment DIARY</title>
-    <link rel="apple-touch-icon" href="https://i.pinimg.com/1200x/1d/68/27/1d6827969eb41c39e0f5f5a3369c2b7c.jpg">
+    <link rel="apple-touch-icon" href="https://i.pinimg.com/1200x/dd/35/4a/dd354af537023b3e3f298671744abdb6.jpg">
     <style>
         :root {
             --primary: #4f46e5;
@@ -177,7 +177,6 @@
         set: (key, val) => localStorage.setItem(key, JSON.stringify(val))
     };
 
-    // 👇 핵심 수정: 한국 시간(로컬 기기 시간) 기준으로 정확하게 오늘 날짜(YYYY-MM-DD)를 뽑아내는 함수 👇
     function getTodayStr() {
         const d = new Date();
         const year = d.getFullYear();
@@ -186,7 +185,6 @@
         return `${year}-${month}-${day}`;
     }
 
-    // 이제 영국 시간(UTC)이 아니라 한국 시간 기준으로 달력을 세팅합니다!
     document.getElementById('diaryDate').value = getTodayStr();
     document.getElementById('tournamentDate').value = getTodayStr(); 
 
@@ -221,13 +219,23 @@
         }
     }
 
+    // 👇 핵심 업데이트: 한 주의 시작을 '월요일'로 묶어주는 로직 적용 👇
     function getDateInfo(dateStr) {
         const d = new Date(dateStr);
         const year = d.getFullYear();
         const month = d.getMonth() + 1;
+        
+        // 1월 1일이 무슨 요일인지 계산 (0: 일요일, 1: 월요일 ... 6: 토요일)
         const start = new Date(year, 0, 1);
+        const startDay = start.getDay();
+        
+        // 🚨 일요일(0)을 7로 바꿔서, 주말을 한 주의 맨 끝으로 밀어버림!
+        const adjustedStartDay = startDay === 0 ? 7 : startDay;
+        
+        // 1월 1일부터 며칠 지났는지 계산 후 7로 나눠서 주차(Week) 구하기
         const pastDaysOfYear = Math.floor((d - start) / 86400000);
-        const week = Math.ceil((pastDaysOfYear + start.getDay() + 1) / 7);
+        const week = Math.ceil((pastDaysOfYear + adjustedStartDay) / 7);
+        
         return { year, month, week };
     }
 
@@ -243,7 +251,7 @@
         const existingCount = dailyData.filter(item => item.date === dateInput).length;
 
         if (existingCount >= 3) {
-            alert('해당 날짜에는 이미 3개의 순간을 모두 기록하셨습니다! 꽉 찼어요 😆');
+            alert('해당 날짜에는 이미 3개의 순간을 모두 기록하셨습니다!😊✨');
             return;
         }
 
@@ -278,7 +286,6 @@
     function setupTournament(tier) {
         currentTier = tier;
 
-        // 토너먼트도 로컬 타임을 기준으로 가져오도록 수정
         const baseDateStr = document.getElementById('tournamentDate').value || getTodayStr();
         currentBaseInfo = getDateInfo(baseDateStr);
 
