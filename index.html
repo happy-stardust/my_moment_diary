@@ -109,6 +109,11 @@
         .archive-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
         .archive-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
         .empty-state { text-align: center; color: var(--text-muted); padding: 30px 0; font-size: 0.95rem; }
+
+        /* 백업 섹션 UI */
+        .backup-section {
+            margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--border); text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -166,7 +171,17 @@
                 <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('monthly_best', this)">월간</button>
                 <button class="tab-btn" style="border:1px solid var(--border);" onclick="renderArchive('yearly_best', this)">올해</button>
             </div>
+            
             <div id="archive-content"></div>
+
+            <div class="backup-section">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 12px 0;">소중한 기록을 안전하게 보관하고 이동하세요 💾</p>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="background: #64748b; font-size: 0.9rem; padding: 10px;" onclick="exportData()">내보내기 (백업)</button>
+                    <button class="action-btn" style="background: #94a3b8; font-size: 0.9rem; padding: 10px;" onclick="document.getElementById('importFile').click()">불러오기 (복원)</button>
+                    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importData(event)">
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -515,7 +530,6 @@
                         <div style="flex: 1; padding-right: 12px; margin-top: 4px;">
                             <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); word-break: keep-all;">${item.text}</div>
                         </div>
-                        <!-- 👇 투박한 이모지 제거하고 미니멀한 텍스트/기호로 싹 바꾼 부분 👇 -->
                         <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
                             <button onclick="editItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:0.8rem; color: #94a3b8; cursor:pointer; padding:4px; font-weight:600;">수정</button>
                             <button onclick="deleteItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:1.2rem; color: #cbd5e1; cursor:pointer; padding:4px 0 4px 4px; font-weight:300;">✕</button>
@@ -533,6 +547,58 @@
             target.appendChild(header);
             target.appendChild(body);
         });
+    }
+
+    // 👇 핵심 업데이트: JSON 백업 (내보내기) 로직 👇
+    function exportData() {
+        const backupData = {
+            daily: DB.get('daily_moments'),
+            weekly: DB.get('weekly_best'),
+            monthly: DB.get('monthly_best'),
+            yearly: DB.get('yearly_best'),
+            comments: JSON.parse(localStorage.getItem('period_comments') || '{}')
+        };
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `moment_diary_backup_${getTodayStr()}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    // 👇 핵심 업데이트: JSON 복원 (불러오기) 로직 👇
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                // 데이터 무결성 가벼운 체크
+                if (data.daily !== undefined) {
+                    if (confirm('⚠️ 기존 기록이 모두 삭제되고 백업 파일로 덮어씌워집니다.\n정말 복원하시겠습니까?')) {
+                        DB.set('daily_moments', data.daily || []);
+                        DB.set('weekly_best', data.weekly || []);
+                        DB.set('monthly_best', data.monthly || []);
+                        DB.set('yearly_best', data.yearly || []);
+                        localStorage.setItem('period_comments', JSON.stringify(data.comments || {}));
+                        
+                        alert('✅ 복원이 성공적으로 완료되었습니다!');
+                        location.reload(); // 복원 후 화면 깔끔하게 새로고침
+                    }
+                } else {
+                    alert('올바른 MOMENT DIARY 백업 파일이 아닙니다.');
+                }
+            } catch (error) {
+                alert('파일을 읽는 중 오류가 발생했습니다. 올바른 파일인지 확인해주세요.');
+            }
+            event.target.value = ''; // input 초기화 (같은 파일 다시 선택 가능하도록)
+        };
+        reader.readAsText(file);
     }
 </script>
 
