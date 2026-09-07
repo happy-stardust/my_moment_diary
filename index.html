@@ -549,7 +549,7 @@
         });
     }
 
-    // 👇 핵심 업데이트: JSON 백업 (내보내기) 로직 👇
+    // 👇 핵심 수정: 모바일 환경에서 완벽하게 작동하는 Blob 다운로드 방식 도입 👇
     function exportData() {
         const backupData = {
             daily: DB.get('daily_moments'),
@@ -559,16 +559,23 @@
             comments: JSON.parse(localStorage.getItem('period_comments') || '{}')
         };
         
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+        // 텍스트를 진짜 파일(Blob) 형태로 예쁘게 포장합니다!
+        const jsonString = JSON.stringify(backupData, null, 2); 
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
         const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `moment_diary_backup_${getTodayStr()}.json`);
+        downloadAnchorNode.href = url;
+        downloadAnchorNode.download = `moment_diary_backup_${getTodayStr()}.json`;
+        
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+        
+        // 다운로드가 끝나면 메모리 정리를 위해 깔끔하게 삭제!
+        document.body.removeChild(downloadAnchorNode);
+        URL.revokeObjectURL(url);
     }
 
-    // 👇 핵심 업데이트: JSON 복원 (불러오기) 로직 👇
     function importData(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -578,7 +585,6 @@
             try {
                 const data = JSON.parse(e.target.result);
                 
-                // 데이터 무결성 가벼운 체크
                 if (data.daily !== undefined) {
                     if (confirm('⚠️ 기존 기록이 모두 삭제되고 백업 파일로 덮어씌워집니다.\n정말 복원하시겠습니까?')) {
                         DB.set('daily_moments', data.daily || []);
@@ -588,7 +594,7 @@
                         localStorage.setItem('period_comments', JSON.stringify(data.comments || {}));
                         
                         alert('✅ 복원이 성공적으로 완료되었습니다!');
-                        location.reload(); // 복원 후 화면 깔끔하게 새로고침
+                        location.reload(); 
                     }
                 } else {
                     alert('올바른 MOMENT DIARY 백업 파일이 아닙니다.');
@@ -596,7 +602,7 @@
             } catch (error) {
                 alert('파일을 읽는 중 오류가 발생했습니다. 올바른 파일인지 확인해주세요.');
             }
-            event.target.value = ''; // input 초기화 (같은 파일 다시 선택 가능하도록)
+            event.target.value = ''; 
         };
         reader.readAsText(file);
     }
