@@ -219,20 +219,15 @@
         }
     }
 
-    // 👇 핵심 업데이트: 한 주의 시작을 '월요일'로 묶어주는 로직 적용 👇
     function getDateInfo(dateStr) {
         const d = new Date(dateStr);
         const year = d.getFullYear();
         const month = d.getMonth() + 1;
         
-        // 1월 1일이 무슨 요일인지 계산 (0: 일요일, 1: 월요일 ... 6: 토요일)
         const start = new Date(year, 0, 1);
         const startDay = start.getDay();
-        
-        // 🚨 일요일(0)을 7로 바꿔서, 주말을 한 주의 맨 끝으로 밀어버림!
         const adjustedStartDay = startDay === 0 ? 7 : startDay;
         
-        // 1월 1일부터 며칠 지났는지 계산 후 7로 나눠서 주차(Week) 구하기
         const pastDaysOfYear = Math.floor((d - start) / 86400000);
         const week = Math.ceil((pastDaysOfYear + adjustedStartDay) / 7);
         
@@ -251,7 +246,7 @@
         const existingCount = dailyData.filter(item => item.date === dateInput).length;
 
         if (existingCount >= 3) {
-            alert('해당 날짜에는 이미 3개의 순간을 모두 기록하셨습니다!😊✨');
+            alert('해당 날짜에는 이미 3개의 순간을 모두 기록하셨습니다! 꽉 찼어요 😆');
             return;
         }
 
@@ -520,9 +515,10 @@
                         <div style="flex: 1; padding-right: 12px; margin-top: 4px;">
                             <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); word-break: keep-all;">${item.text}</div>
                         </div>
-                        <div style="display: flex; gap: 12px; flex-shrink: 0;">
-                            <button onclick="editItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:1.1rem; cursor:pointer; padding:0;">✏️</button>
-                            <button onclick="deleteItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:1.1rem; cursor:pointer; padding:0;">🗑️</button>
+                        <!-- 👇 투박한 이모지 제거하고 미니멀한 텍스트/기호로 싹 바꾼 부분 👇 -->
+                        <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
+                            <button onclick="editItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:0.8rem; color: #94a3b8; cursor:pointer; padding:4px; font-weight:600;">수정</button>
+                            <button onclick="deleteItem('${item.id}', '${storageKey}')" style="background:none; border:none; font-size:1.2rem; color: #cbd5e1; cursor:pointer; padding:4px 0 4px 4px; font-weight:300;">✕</button>
                         </div>
                     </div>
                 `;
